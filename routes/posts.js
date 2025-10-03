@@ -43,35 +43,46 @@ router.get('/:id', async (req, res) => {
 });
 
 // Create (admin only) - allow image upload (field name: image)
+// Create post
 router.post('/', verifyToken, isAdmin, upload.single('image'), async (req, res) => {
   try {
     const { title, content } = req.body;
-    const imageUrl = req.file ? `/uploads/${req.file.filename}` : undefined;
-    const newPost = new Post({ title, content, imageUrl, author: req.user.id });
+    const imageUrl = req.file ? req.file.path : undefined; // Cloudinary URL
+
+    const newPost = new Post({
+      title,
+      content,
+      imageUrl,
+      author: req.user.id,
+    });
+
     await newPost.save();
     res.status(201).json(newPost);
-  } catch (err) { res.status(500).json({ msg: err.message }); }
+  } catch (err) {
+    res.status(500).json({ msg: err.message });
+  }
 });
 
-// Update (admin only) - allow replacing image
+// Update post
 router.put('/:id', verifyToken, isAdmin, upload.single('image'), async (req, res) => {
   try {
     const post = await Post.findById(req.params.id);
     if (!post) return res.status(404).json({ msg: 'Not found' });
+
     post.title = req.body.title ?? post.title;
     post.content = req.body.content ?? post.content;
-    if (req.file){
-      const oldImagePath = path.join(__dirname, '..', post.imageUrl);
-        fs.unlink(oldImagePath, (err) => {
-          if (err) console.log('Old image delete error:', err);
-        });
-      post.imageUrl = `/uploads/${req.file.filename}`;
+
+    if (req.file) {
+      post.imageUrl = req.file.path; // Cloudinary URL replace হবে
     }
-      
+
     await post.save();
     res.json(post);
-  } catch (err) { res.status(500).json({ msg: err.message }); }
+  } catch (err) {
+    res.status(500).json({ msg: err.message });
+  }
 });
+
 
 // Delete (admin only)
 router.delete('/:id', verifyToken, isAdmin, async (req, res) => {
